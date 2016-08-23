@@ -3,12 +3,13 @@
 """
 
 import csv
+import json
 import sys
 
 import click
 import requests
 import ratelim
-import json
+import tqdm
 
 from urllib.parse import urljoin
 
@@ -31,7 +32,7 @@ class FoursquareAPI(object):
         base_arguments.update(arguments)
         return base_arguments
 
-    @ratelim.patient(2000, 3600)
+    @ratelim.patient(4500, 3600)
     def _get(self, endpoint, arguments):
         resp = requests.get(endpoint,
                             params=self._build_arguments(arguments))
@@ -60,15 +61,17 @@ def main(client_id, client_secret, infile, outfile):
     """
     api = FoursquareAPI(client_id, client_secret)
     reader = csv.reader(infile)
-    for name, lat, lon in reader:
-        intent = 'match'
-        if lat == 0 and lon == 0:
-            intent = 'global'
-        result = api.search(query=name, intent=intent, ll="{},{}".format(lat, lon)).json()
-        if len(result['response']['venues']) == 0 and intent != "global":
-            intent = 'checkin'
+    with tqdm.tqdm() as pbar:
+        for name, lat, lon in reader:
+            pbar.update(1)
+            intent = 'match'
+            if lat == 0 and lon == 0:
+                intent = 'global'
             result = api.search(query=name, intent=intent, ll="{},{}".format(lat, lon)).json()
-        print(json.dumps(result))
+            if len(result['response']['venues']) == 0 and intent != "global":
+                intent = 'checkin'
+                result = api.search(query=name, intent=intent, ll="{},{}".format(lat, lon)).json()
+            print(json.dumps(result))
 
 
 if __name__ == "__main__":
