@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """This script matches venue strings / locations to FourSquare IDs and retrieves venues details from the FourSquare API.
 
 """
@@ -59,18 +62,24 @@ def main(client_id, client_secret, infile, outfile):
     If the latitude/longitude is 0,0 it will perform a global search
 
     """
+    assert client_id
+    assert client_secret
     api = FoursquareAPI(client_id, client_secret)
     reader = csv.reader(infile)
     with tqdm.tqdm() as pbar:
         for name, lat, lon in reader:
             pbar.update(1)
-            intent = 'match'
-            if lat == 0 and lon == 0:
-                intent = 'global'
-            result = api.search(query=name, intent=intent, ll="{},{}".format(lat, lon)).json()
-            if len(result['response']['venues']) == 0 and intent != "global":
-                intent = 'checkin'
-                result = api.search(query=name, intent=intent, ll="{},{}".format(lat, lon)).json()
+            for _ in range(10):
+                try:
+                    if lat == "0" and lon == "0":
+                        result = api.search(query=name, intent='global', ll="{},{}".format(lat, lon)).json()
+                    else:
+                        result = api.search(query=name, intent='match', ll="{},{}".format(lat, lon)).json()
+                        if len(result['response']['venues']) == 0:
+                            result = api.search(query=name, intent='checkin', ll="{},{}".format(lat, lon)).json()
+                except (KeyError, requests.exceptions.RequestException):
+                    pass
+                break
             print(json.dumps(result))
 
 
