@@ -20,7 +20,7 @@ BASE_URL = "https://api.foursquare.com/v2/"
 
 class FoursquareAPI(object):
     search_url = urljoin(BASE_URL, "venues/search")
-    venue_url = urljoin(BASE_URL, "venues/search")
+    venue_url = urljoin(BASE_URL, "venues/{}")
 
     def __init__(self, client_id, client_secret):
         self.client_id = client_id
@@ -45,7 +45,8 @@ class FoursquareAPI(object):
         return self._get(self.search_url, arguments)
 
     def venue(self, venue_id):
-        return self._get(self.venue_url, arguments)
+        url = self.venue_url.format(venue_id)
+        return self._get(url, {})
 
 @click.command()
 @click.option('--client_id', envvar="FSQ_ID")
@@ -80,7 +81,12 @@ def main(client_id, client_secret, infile, outfile):
                 except (KeyError, requests.exceptions.RequestException):
                     pass
                 break
-            print(json.dumps(result))
+            try:
+                venue = result['response']['venues'][0]
+                venue_details = api.venue(venue['id']).json()
+            except (KeyError, IndexError):
+                venue_details = {}
+            print(json.dumps(venue_details))
 
 
 if __name__ == "__main__":
